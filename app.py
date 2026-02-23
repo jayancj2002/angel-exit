@@ -1,17 +1,30 @@
 from flask import Flask, jsonify, request
 import os
+import time
 
 app = Flask(__name__)
 
-# ---- HEALTH CHECK ROUTE ----
+# ===== EXIT SAFETY LOCK =====
+last_exit_time = 0
+EXIT_COOLDOWN = 180   # seconds (3 minutes)
+
+# ---- HEALTH CHECK ----
 @app.route("/")
 def home():
     return "Server Live ✅"
 
 
-# ---- EXIT ROUTE ----
+# ---- EXIT WEBHOOK ----
 @app.route("/exit", methods=["POST"])
 def exit_trade():
+    global last_exit_time
+
+    now = time.time()
+
+    # ✅ Prevent duplicate exits
+    if now - last_exit_time < EXIT_COOLDOWN:
+        return jsonify({"status": "EXIT BLOCKED (Cooldown Active)"})
+
     try:
         from SmartApi import SmartConnect
         import pyotp
@@ -44,7 +57,10 @@ def exit_trade():
                         "quantity": abs(qty)
                     })
 
-        return jsonify({"status": "EXIT DONE"})
+        # ✅ Activate lock
+        last_exit_time = now
+
+        return jsonify({"status": "EXIT EXECUTED ✅"})
 
     except Exception as e:
         return jsonify({"error": str(e)})
