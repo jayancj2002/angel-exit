@@ -1,22 +1,7 @@
 from flask import Flask, jsonify, request
-from SmartApi import SmartConnect
-import pyotp
 import os
 
 app = Flask(__name__)
-
-API_KEY = os.environ.get("API_KEY")
-CLIENT_CODE = os.environ.get("CLIENT_CODE")
-PASSWORD = os.environ.get("PASSWORD")
-TOTP_KEY = os.environ.get("TOTP_KEY")
-
-
-def angel_login():
-    obj = SmartConnect(api_key=API_KEY)
-    totp = pyotp.TOTP(TOTP_KEY).now()
-    session = obj.generateSession(CLIENT_CODE, PASSWORD, totp)
-    return obj
-
 
 @app.route("/")
 def home():
@@ -26,22 +11,33 @@ def home():
 @app.route("/exit", methods=["POST"])
 def exit_trade():
     try:
-        angel = angel_login()
-        positions = angel.position()['data']
+        from SmartApi import SmartConnect
+        import pyotp
+
+        API_KEY = os.environ.get("API_KEY")
+        CLIENT_CODE = os.environ.get("CLIENT_CODE")
+        PASSWORD = os.environ.get("PASSWORD")
+        TOTP_KEY = os.environ.get("TOTP_KEY")
+
+        obj = SmartConnect(api_key=API_KEY)
+        totp = pyotp.TOTP(TOTP_KEY).now()
+        obj.generateSession(CLIENT_CODE, PASSWORD, totp)
+
+        positions = obj.position()["data"]
 
         if positions:
             for pos in positions:
-                qty = int(pos['netqty'])
+                qty = int(pos["netqty"])
 
                 if qty != 0:
-                    angel.placeOrder({
+                    obj.placeOrder({
                         "variety": "NORMAL",
-                        "tradingsymbol": pos['tradingsymbol'],
-                        "symboltoken": pos['symboltoken'],
+                        "tradingsymbol": pos["tradingsymbol"],
+                        "symboltoken": pos["symboltoken"],
                         "transactiontype": "SELL" if qty > 0 else "BUY",
-                        "exchange": pos['exchange'],
+                        "exchange": pos["exchange"],
                         "ordertype": "MARKET",
-                        "producttype": pos['producttype'],
+                        "producttype": pos["producttype"],
                         "duration": "DAY",
                         "quantity": abs(qty)
                     })
