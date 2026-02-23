@@ -3,13 +3,13 @@ import os
 
 app = Flask(__name__)
 
-# ✅ HEALTH CHECK (Render needs this FAST)
+# ---- HEALTH CHECK ROUTE ----
 @app.route("/")
 def home():
     return "Server Live ✅"
 
 
-# ✅ TRADINGVIEW EXIT WEBHOOK
+# ---- EXIT ROUTE ----
 @app.route("/exit", methods=["POST"])
 def exit_trade():
     try:
