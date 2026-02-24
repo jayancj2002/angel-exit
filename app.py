@@ -69,13 +69,16 @@ def exit_trade():
                 transaction = "SELL" if actual_qty > 0 else "BUY"
 
                 orderparams = {
-                    "variety": "NORMAL",
-                    "tradingsymbol": pos["tradingsymbol"],
-                    "symboltoken": pos["symboltoken"],
-                    "transactiontype": transaction,
-                    "exchange": pos["exchange"],
-                    "ordertype": "MARKET",
-                    "producttype": pos["producttype"],
+    "variety": "NORMAL",
+    "tradingsymbol": pos["tradingsymbol"],
+    "symboltoken": pos["symboltoken"],
+    "transactiontype": transaction,
+    "exchange": pos["exchange"],
+    "ordertype": "MARKET",
+    "producttype": "INTRADAY",
+    "duration": "DAY",
+    "quantity": abs(actual_qty)
+}
                     "duration": "DAY",
                     "quantity": abs(actual_qty)
                 }
