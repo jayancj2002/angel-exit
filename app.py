@@ -4,39 +4,47 @@ import time
 
 app = Flask(__name__)
 
-last_exit_time = 0
-EXIT_COOLDOWN = 180
-
-
+# =========================
+# HEALTH CHECK
+# =========================
 @app.route("/")
 def home():
     return "Server Live ✅"
 
 
+# =========================
+# EXIT WEBHOOK (DEBUG MODE)
+# =========================
 @app.route("/exit", methods=["POST"])
 def exit_trade():
-    global last_exit_time
-
-    now = time.time()
-
-    if now - last_exit_time < EXIT_COOLDOWN:
-        return jsonify({"status": "Cooldown Active"})
 
     try:
         from SmartApi import SmartConnect
         import pyotp
+
+        print("EXIT SIGNAL RECEIVED")
 
         API_KEY = os.getenv("API_KEY")
         CLIENT_CODE = os.getenv("CLIENT_CODE")
         PASSWORD = os.getenv("PASSWORD")
         TOTP_KEY = os.getenv("TOTP_KEY")
 
+        # ---- LOGIN ----
         obj = SmartConnect(api_key=API_KEY)
         totp = pyotp.TOTP(TOTP_KEY).now()
 
-        obj.generateSession(CLIENT_CODE, PASSWORD, totp)
+        session = obj.generateSession(
+            CLIENT_CODE,
+            PASSWORD,
+            totp
+        )
 
+        print("LOGIN SUCCESS")
+
+        # ---- FETCH POSITIONS ----
         positions = obj.position().get("data", [])
+
+        print("POSITIONS FOUND:", positions)
 
         exited = False
 
@@ -47,6 +55,8 @@ def exit_trade():
             sellqty = int(pos.get("sellqty", 0))
 
             qty = netqty if netqty != 0 else (buyqty - sellqty)
+
+            print("CHECKING POSITION:", pos["tradingsymbol"], qty)
 
             if qty != 0:
 
@@ -59,20 +69,24 @@ def exit_trade():
                     "transactiontype": transaction,
                     "exchange": pos["exchange"],
                     "ordertype": "MARKET",
-                    "producttype": "INTRADAY",
+                    "producttype": pos["producttype"],
                     "duration": "DAY",
                     "quantity": abs(qty)
                 }
 
-                obj.placeOrder(orderparams)
+                print("PLACING ORDER:", orderparams)
+
+                response = obj.placeOrder(orderparams)
+
+                print("ORDER RESPONSE:", response)
+
                 exited = True
 
-        last_exit_time = now
-
         if exited:
-            return jsonify({"status": "EXIT EXECUTED"})
+            return jsonify({"status": "EXIT ORDER SENT"})
         else:
             return jsonify({"status": "NO POSITION FOUND"})
 
     except Exception as e:
+        print("ERROR:", str(e))
         return jsonify({"error": str(e)})
